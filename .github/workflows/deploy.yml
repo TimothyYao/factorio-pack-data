@@ -1,13 +1,17 @@
-# Publishes the whole data plane to GitHub Pages: the committed JSON tiers
-# (packs/) plus the per-pack .basis texture sets, which are NEVER committed
-# here. Textures are sourced per pack, in order of preference:
+# Publishes this fork's data plane to GitHub Pages:
+# https://timothyyao.github.io/factorio-pack-data/
+# (parent: https://trisiak.github.io/factorio-pack-data/). See
+# docs/github-pages.md. The committed JSON tiers (packs/) plus the per-pack
+# .basis texture sets, which are NEVER committed here. Textures are sourced
+# per pack, in order of preference:
 #   1. the Actions cache (saved by any previous run);
-#   2. bootstrap from the fbe repo's pinned pre-eviction commit (full packs
-#      only — slim variants never existed there);
+#   2. bootstrap from fbe-universal's pinned pre-eviction commit (full packs
+#      only — slim variants never existed there; the SHA is from the parent
+#      fbe line, still present in fbe-universal's git history);
 #   3. regeneration:
-#      - full packs: the fbe exporter's dump pipeline (workflow_dispatch with
-#        `regenerate`; needs FACTORIO_USERNAME / FACTORIO_TOKEN secrets);
-#      - slim variants (graphics-only, `<base>-slim`): the fbe exporter's
+#      - full packs: fbe-universal's exporter dump pipeline (workflow_dispatch
+#        with `regenerate`; needs FACTORIO_USERNAME / FACTORIO_TOKEN secrets);
+#      - slim variants (graphics-only, `<base>-slim`): fbe-universal's
 #        --slim pipeline — census rect report over the BASE pack's committed
 #        data.json, then crop + downscale of the source PNGs (needs the same
 #        secrets, for the Factorio download only).
@@ -48,13 +52,15 @@ permissions:
   id-token: write
 
 env:
-  FBE_REPO: trisiak/factorio-blueprint-editor
+  # Sibling editor fork: exporter + historical texture blobs live there.
+  FBE_REPO: TimothyYao/factorio-blueprint-editor-universal
   # The exporter/editor ref the regeneration paths build from.
   FBE_REF: master
-  # The last fbe commit that still carries data/output textures. The bootstrap
-  # path fetches THIS SHA (git history keeps the blobs even after fbe evicted
-  # the files from its tree), so full packs stay rebuildable without secrets
-  # even if the Actions cache evicts. Regeneration is the forward path.
+  # The last parent-line fbe commit that still carries data/output textures.
+  # The bootstrap path fetches THIS SHA from FBE_REPO (forks keep the blobs
+  # even after the files left the tree), so full packs stay rebuildable
+  # without secrets even if the Actions cache evicts. Regeneration is the
+  # forward path.
   FBE_BOOTSTRAP_SHA: 2849afc9938aef802af656ecfcaf2fc1b27289e1
 
 jobs:
@@ -95,8 +101,9 @@ jobs:
           elif [ -d "textures/${{ matrix.pack }}" ] && [ -n "$(find textures/${{ matrix.pack }} -name '*.basis' -print -quit)" ]; then
             echo "mode=cache" >> "$GITHUB_OUTPUT"
           elif [ "$SLIM" = 1 ]; then
-            # Slim variants have no bootstrap (they never existed in fbe's
-            # history). With no cache and no rebuild requested, skip the pack —
+            # Slim variants have no bootstrap (they never existed in
+            # fbe-universal's history). With no cache and no rebuild requested,
+            # skip the pack —
             # the deploy job drops it from the served manifest until someone
             # dispatches regenerate=${{ matrix.pack }}.
             echo "::warning::no cached textures for ${{ matrix.pack }} — pack will be omitted; dispatch regenerate=${{ matrix.pack }} to build it"
@@ -105,7 +112,7 @@ jobs:
             echo "mode=bootstrap" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Bootstrap textures from the fbe repo
+      - name: Bootstrap textures from fbe-universal git history
         if: steps.source.outputs.mode == 'bootstrap'
         run: |
           git init -q fbe-data
@@ -124,7 +131,7 @@ jobs:
           rm -rf fbe-data
           echo "Bootstrapped $(find textures/${{ matrix.pack }} -name '*.basis' | wc -l) .basis files"
 
-      - name: Regenerate with the fbe exporter
+      - name: Regenerate with the fbe-universal exporter
         if: steps.source.outputs.mode == 'regen'
         env:
           # BOTH values are secrets and auto-masked in logs — the username is
@@ -184,7 +191,7 @@ jobs:
           sys.exit(0 if ok else 1)
           PY
 
-      - name: Build slim variant with the fbe exporter
+      - name: Build slim variant with the fbe-universal exporter
         if: steps.source.outputs.mode == 'slim'
         env:
           # Secrets are needed only for the Factorio download (source PNGs).

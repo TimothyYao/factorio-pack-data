@@ -1,23 +1,33 @@
 # factorio-pack-data
 
-The shared **data plane** for two sibling forks:
+> **This is a fork.** Immediate parent is
+> [`trisiak/factorio-pack-data`](https://github.com/trisiak/factorio-pack-data)
+> (hosted at https://trisiak.github.io/factorio-pack-data/). This line of
+> development is **not** expected to merge back. It deploys on its own via
+> GitHub Pages at https://timothyyao.github.io/factorio-pack-data/.
+> Pages setup (including the one-time GitHub settings this repo cannot flip
+> from code) is in [`docs/github-pages.md`](./docs/github-pages.md).
 
-- [`trisiak/factorio-blueprint-editor`](https://github.com/trisiak/factorio-blueprint-editor)
-  (fbe) — consumes the per-pack `editor` tier (`data.json` + `.basis` sprite
-  atlas);
-- [`trisiak/factorio-item-browser`](https://github.com/trisiak/factorio-item-browser)
-  (FIB) — consumes the per-pack `browser/` tier (`catalog.json` +
-  `icons.webp` + `icons.json`).
+The **data plane** for
+[`TimothyYao/factorio-blueprint-editor-universal`](https://github.com/TimothyYao/factorio-blueprint-editor-universal)
+(fbe-universal) — consumes the per-pack `editor` tier (`data.json` + `.basis`
+sprite atlas).
+
+The original sibling
+[`trisiak/factorio-item-browser`](https://github.com/trisiak/factorio-item-browser)
+(FIB) consumes the per-pack `browser/` tier (`catalog.json` + `icons.webp` +
+`icons.json`) of the *parent* data plane. This fork publishes the same
+artifact layout so a future FIB consumer can point here too.
 
 Design record: the FIB fork's
 [`docs/data-plane.md`](https://github.com/trisiak/factorio-item-browser/blob/master/docs/data-plane.md)
-(this repo is its slice 2). The pipeline that generates everything is the fbe
-fork's Rust exporter (`packages/exporter/` there — see its README).
+(this repo is its slice 2). The pipeline that generates everything is
+fbe-universal's Rust exporter (`packages/exporter/` there — see its README).
 
 ## What is committed vs. built
 
 **Committed** (small, diffable, reviewable): `packs/packs.json` (the pack
-manifest both apps read) and each pack's JSON tiers — `data.json` and
+manifest the editor reads) and each pack's JSON tiers — `data.json` and
 `browser/` (catalog + icon sheet).
 
 **Never committed**: the full-resolution `.basis` sprite atlases. They are
@@ -25,8 +35,9 @@ manifest both apps read) and each pack's JSON tiers — `data.json` and
 preference —
 
 1. **Actions cache** (from a previous run);
-2. **bootstrap** from the fbe repo's committed copy (a transition path that
-   goes away once fbe evicts its `data/output` textures);
+2. **bootstrap** from fbe-universal's git history at a pinned pre-eviction
+   SHA (a transition path that stays rebuildable even after textures left
+   the tree);
 3. **regeneration** — a `workflow_dispatch` with `regenerate` set runs the
    full exporter (Factorio download + dumps + basisu atlas) using
    `FACTORIO_USERNAME` / `FACTORIO_TOKEN` repo secrets. Regeneration also
@@ -37,7 +48,7 @@ preference —
 
 Every successful run publishes the whole site (manifest + JSON tiers +
 textures) to GitHub Pages:
-`https://trisiak.github.io/factorio-pack-data/<pack-id>/…`
+`https://timothyyao.github.io/factorio-pack-data/<pack-id>/…`
 
 ## Why this shape
 
@@ -48,14 +59,14 @@ textures) to GitHub Pages:
   Wube Software; mod assets belong to their authors). The committed JSON
   tiers are factual metadata projections; the small icon sheets are kept
   versioned for reviewability and consumer stability.
-- Pack-list configuration lives here, outside both apps, and the most
+- Pack-list configuration lives here, outside the editor, and the most
   privileged credential (the Factorio token) is isolated to this repo's
   secrets — the app repos never see it.
 
 ## Updating / adding a pack
 
-1. Edit `packs/packs.json` (see the fbe exporter README for the entry format;
-   third-party mods need pinned `versions`).
+1. Edit `packs/packs.json` (see the fbe-universal exporter README for the
+   entry format; third-party mods need pinned `versions`).
 2. Run the deploy workflow with `regenerate: <pack-id>` (needs the secrets).
 3. If the drift check fails, download the `regen-json-<pack>` artifact,
    commit its contents under `packs/<pack-id>/`, and re-run.
